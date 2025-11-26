@@ -23,6 +23,11 @@ class MazeEditor:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            
+            # save on 's' key
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_s:
+                    self.export_maze()
         
         # mouse drawing
         mouse_pressed = pygame.mouse.get_pressed()
@@ -56,3 +61,14 @@ class MazeEditor:
             self.draw()
         
         pygame.quit()
+
+    def export_maze(self):
+        # save maze to file
+        with open('maze_grid.txt', 'w') as f:
+            f.write('grid = [\n')
+            for row in self.maze:
+                f.write(f'    {row},\n')
+            f.write(']\n')
+        print('saved to maze_grid.txt')
+
+    
