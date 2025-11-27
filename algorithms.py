@@ -1,3 +1,8 @@
+# make sure you're running the right file
+if __name__ == "__main__":
+    print("Run gui.py silly.")
+    exit()
+
 # imports
 from collections import deque
 
