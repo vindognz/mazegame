@@ -7,7 +7,9 @@ class MazeEditor:
         # grid stuff
         self.grid_size = grid_size
         self.cell_size = cell_size
-        self.window_size = grid_size * cell_size
+        self.maze_size = grid_size * cell_size
+        self.border_width = 8
+        self.window_size = self.maze_size + (self.border_width * 2)
         
         # maze array - 0 = walkable, 1 = wall
         self.maze = [[0 for _ in range(grid_size)] for _ in range(grid_size)]
@@ -22,6 +24,7 @@ class MazeEditor:
         pygame.init()
         self.screen = pygame.display.set_mode((self.window_size, self.window_size))
         pygame.display.set_caption("Maze Painteir")
+        pygame.mouse.set_visible(False)
         
         self.running = True
     
@@ -113,8 +116,8 @@ class MazeEditor:
         if mouse_pressed[0] or mouse_pressed[2]:
             self.path = []  # clear path when drawing
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            grid_x = mouse_x // self.cell_size
-            grid_y = mouse_y // self.cell_size
+            grid_x = (mouse_x - self.border_width) // self.cell_size
+            grid_y = (mouse_y - self.border_width) // self.cell_size
             
             # make sure we're in bounds
             if 0 <= grid_x < self.grid_size and 0 <= grid_y < self.grid_size:
@@ -126,7 +129,10 @@ class MazeEditor:
                         self.maze[grid_y][grid_x] = 0
     
     def draw(self):
-        # draw the grid
+        # fill background
+        self.screen.fill((50, 50, 50))
+        
+        # draw the grid (offset by border)
         for y in range(self.grid_size):
             for x in range(self.grid_size):
                 # check if this tile is in the path
@@ -142,9 +148,20 @@ class MazeEditor:
                     color = (0, 0, 0)  # black wall
                 
                 pygame.draw.rect(self.screen, color, 
-                            (x * self.cell_size, y * self.cell_size, 
+                            (self.border_width + x * self.cell_size, 
+                                self.border_width + y * self.cell_size, 
                                 self.cell_size, self.cell_size))
-        
+                
+        # draw custom pencil cursor
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        # wooden body (orangey brown) - 2x bigger
+        pygame.draw.rect(self.screen, (210, 140, 70), (mouse_x - 4, mouse_y - 20, 8, 24))
+        # pencil tip (graphite) - smaller triangle
+        pencil_tip = [(mouse_x, mouse_y + 8), (mouse_x - 4, mouse_y + 4), (mouse_x + 4, mouse_y + 4)]
+        pygame.draw.polygon(self.screen, (50, 50, 50), pencil_tip)
+        # eraser on top - 2x bigger
+        pygame.draw.rect(self.screen, (255, 150, 150), (mouse_x - 4, mouse_y - 24, 8, 4))
+                
         pygame.display.flip()
     
     # main loop
