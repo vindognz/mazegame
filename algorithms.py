@@ -30,14 +30,22 @@ class BFS(Algorithm):
         
         while queue:
             pos = queue.popleft()
+            
+            # yield current position being explored
+            yield ('exploring', pos, list(self.visited))
+            
             if pos == self.end:
                 # reconstruct path
+                path = []
                 current = self.end
                 while current is not None:
-                    self.path.append(current)
+                    path.append(current)
+                    # yield each step of path reconstruction
+                    yield ('path', current, path[:])
                     current = parent[current]
-                self.path.reverse()
-                return self.path
+                path.reverse()
+                yield ('done', None, path)
+                return
             
             for neighbour in self.get_neighbours(pos):
                 if self.is_valid(neighbour) and neighbour not in self.visited:
@@ -45,7 +53,7 @@ class BFS(Algorithm):
                     self.visited.add(neighbour)
                     parent[neighbour] = pos
         
-        return []  # no path found
+        yield ('no_path', None, [])
 
 # add more algorithms later like:
 # class AStar(Algorithm):

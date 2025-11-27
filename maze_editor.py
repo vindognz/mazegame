@@ -19,12 +19,20 @@ class MazeEditor:
         self.end_pos = None
 
         self.path = []
+
+        # animation stuff
+        self.animating = False
+        self.animation_generator = None
+        self.animation_speed = 10  # frames between steps
+        self.animation_counter = 0
+        self.explored = set()  # blue tiles
         
         # pygame setup
         pygame.init()
         self.screen = pygame.display.set_mode((self.window_size, self.window_size))
         pygame.display.set_caption("Maze Painteir")
         pygame.mouse.set_visible(False)
+
         
         self.running = True
     
@@ -81,12 +89,11 @@ class MazeEditor:
                     if start and end:
                         from algorithms import BFS
                         solver = BFS(self.maze, start, end)
-                        path = solver.solve()
-                        if path:
-                            print(f"Path found! Length: {len(path)}")
-                            self.path = path
-                        else:
-                            print("No path found :(")
+                        self.animation_generator = solver.solve()
+                        self.animating = True
+                        self.explored = set()
+                        self.path = []
+                        print("Starting animation...")
                     else:
                         print("Need both start and end points!")
                 elif event.key == pygame.K_c:  # c = clear walls
@@ -114,19 +121,45 @@ class MazeEditor:
         # mouse drawing
         mouse_pressed = pygame.mouse.get_pressed()
         if mouse_pressed[0] or mouse_pressed[2]:
-            self.path = []  # clear path when drawing
+            self.path = []
             mouse_x, mouse_y = pygame.mouse.get_pos()
             grid_x = (mouse_x - self.border_width) // self.cell_size
             grid_y = (mouse_y - self.border_width) // self.cell_size
             
-            # make sure we're in bounds
-            if 0 <= grid_x < self.grid_size and 0 <= grid_y < self.grid_size:
-                # don't draw over start/end tiles
-                if self.maze[grid_y][grid_x] not in [2, 3]:
-                    if mouse_pressed[0]:  # left click = wall
-                        self.maze[grid_y][grid_x] = 1
-                    elif mouse_pressed[2]:  # right click = erase
-                        self.maze[grid_y][grid_x] = 0
+            if not self.animating:  # only draw if not animating
+                # make sure we're in bounds
+                if 0 <= grid_x < self.grid_size and 0 <= grid_y < self.grid_size:
+                    # don't draw over start/end tiles
+                    if self.maze[grid_y][grid_x] not in [2, 3]:
+                        if mouse_pressed[0]:  # left click = wall
+                            self.maze[grid_y][grid_x] = 1
+                        elif mouse_pressed[2]:  # right click = erase
+                            self.maze[grid_y][grid_x] = 0
+
+    def update(self):
+        if self.animating and self.animation_counter >= self.animation_speed:
+            self.animation_counter = 0
+            try:
+                status, pos, data = next(self.animation_generator)
+                
+                if status == 'exploring':
+                    self.explored = set(data)
+                elif status == 'path':
+                    self.explored = set()  # clear the blue wave
+                    self.path = data[:]
+                elif status == 'done':
+                    self.explored = set()  # make sure it's cleared
+                    self.path = data
+                    self.animating = False
+                    print(f"Path found! Length: {len(self.path)}")
+                elif status == 'no_path':
+                    self.animating = False
+                    print("No path found :(")
+            except StopIteration:
+                self.animating = False
+        
+        if self.animating:
+            self.animation_counter += 1
     
     def draw(self):
         # fill background
@@ -135,9 +168,11 @@ class MazeEditor:
         # draw the grid (offset by border)
         for y in range(self.grid_size):
             for x in range(self.grid_size):
-                # check if this tile is in the path
+                # check colors
                 if (x, y) in self.path:
                     color = (255, 0, 0)  # red path
+                elif (x, y) in self.explored:
+                    color = (100, 150, 255)  # light blue explored
                 elif self.maze[y][x] == 2:
                     color = (0, 255, 0)  # green start
                 elif self.maze[y][x] == 3:
@@ -151,23 +186,21 @@ class MazeEditor:
                             (self.border_width + x * self.cell_size, 
                                 self.border_width + y * self.cell_size, 
                                 self.cell_size, self.cell_size))
-                
+        
         # draw custom pencil cursor
         mouse_x, mouse_y = pygame.mouse.get_pos()
-        # wooden body (orangey brown) - 2x bigger
         pygame.draw.rect(self.screen, (210, 140, 70), (mouse_x - 4, mouse_y - 20, 8, 24))
-        # pencil tip (graphite) - smaller triangle
         pencil_tip = [(mouse_x, mouse_y + 8), (mouse_x - 4, mouse_y + 4), (mouse_x + 4, mouse_y + 4)]
         pygame.draw.polygon(self.screen, (50, 50, 50), pencil_tip)
-        # eraser on top - 2x bigger
         pygame.draw.rect(self.screen, (255, 150, 150), (mouse_x - 4, mouse_y - 24, 8, 4))
-                
+        
         pygame.display.flip()
     
     # main loop
     def run(self):
         while self.running:
             self.handle_input()
+            self.update()
             self.draw()
         
         pygame.quit()
