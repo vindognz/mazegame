@@ -6,6 +6,10 @@ if __name__ == "__main__":
 # imports
 import pygame
 import json
+import easygui
+import os
+
+from algorithms import *
 
 class MazeEditor:
     def __init__(self, grid_size=16, cell_size=32):
@@ -28,7 +32,7 @@ class MazeEditor:
         # animation stuff
         self.animating = False
         self.animation_generator = None
-        self.animation_speed = 10  # frames between steps
+        self.animation_speed = 5  # frames between steps
         self.animation_counter = 0
         self.explored = set()  # blue tiles
         
@@ -102,7 +106,6 @@ class MazeEditor:
                         
                         # make sure we have both start and end
                         if start and end:
-                            from algorithms import BFS
                             solver = BFS(self.maze, start, end)
                             self.animation_generator = solver.solve()
                             self.animating = True
@@ -118,20 +121,58 @@ class MazeEditor:
                                     self.maze[y][x] = 0
                     elif event.key == pygame.K_l:  # l = load maze
                         try:
-                            import json
-                            with open('maze_grid.json', 'r') as f:
-                                loaded_grid = json.load(f)
-                                
-                                # make sure it's the right size
-                                if len(loaded_grid) == self.grid_size and len(loaded_grid[0]) == self.grid_size:
-                                    self.maze = loaded_grid
-                                    print("Maze loaded!")
-                                else:
-                                    print(f"Grid size mismatch! Expected {self.grid_size}x{self.grid_size}")
-                        except FileNotFoundError:
-                            print("No saved maze found :(")
+                            # get list of saved mazes
+                            if not os.path.exists('mazes'):
+                                print("No mazes folder found!")
+                                continue
+                            
+                            maze_files = [f.replace('.json', '') for f in os.listdir('mazes') if f.endswith('.json')]
+                            
+                            if not maze_files:
+                                print("No saved mazes found!")
+                                continue
+                            
+                            # show selection menu
+                            choice = easygui.choicebox("Select a maze to load:", "Load Maze", maze_files)
+                            
+                            if choice:
+                                filepath = f'mazes/{choice}.json'
+                                with open(filepath, 'r') as f:
+                                    loaded_grid = json.load(f)
+                                    
+                                    # make sure it's the right size
+                                    if len(loaded_grid) == self.grid_size and len(loaded_grid[0]) == self.grid_size:
+                                        self.maze = loaded_grid
+                                        print(f"Maze '{choice}' loaded!")
+                                    else:
+                                        print(f"Grid size mismatch! Expected {self.grid_size}x{self.grid_size}")
                         except Exception as e:
                             print(f"Error loading maze: {e}")
+                    elif event.key == pygame.K_d:  # d = delete maze
+                        try:
+                            # get list of saved mazes
+                            if not os.path.exists('mazes'):
+                                print("No mazes folder found!")
+                                continue
+                            
+                            maze_files = [f.replace('.json', '') for f in os.listdir('mazes') if f.endswith('.json')]
+                            
+                            if not maze_files:
+                                print("No saved mazes found!")
+                                continue
+                            
+                            # show selection menu
+                            choice = easygui.choicebox("Select a maze to delete:", "Delete Maze", maze_files)
+                            
+                            if choice:
+                                # confirm deletion
+                                confirm = easygui.ynbox(f"Are you sure you want to delete '{choice}'?", "Confirm Delete")
+                                if confirm:
+                                    filepath = f'mazes/{choice}.json'
+                                    os.remove(filepath)
+                                    print(f"Deleted '{choice}'")
+                        except Exception as e:
+                            print(f"Error deleting maze: {e}")
                     elif event.key == pygame.K_h:  # h = solve with A*
                         # find start and end in the grid
                         start = None
@@ -144,7 +185,6 @@ class MazeEditor:
                                     end = (x, y)
                         
                         if start and end:
-                            from algorithms import AStar
                             solver = AStar(self.maze, start, end)
                             self.animation_generator = solver.solve()
                             self.animating = True
@@ -242,9 +282,14 @@ class MazeEditor:
         pygame.quit()
 
     def export_maze(self):
-        # save maze to file
-        with open('maze_grid.json', 'w') as f:
-            json.dump(self.maze, f)
-        print('saved to maze_grid.json')
-
-    
+        # create mazes directory if it doesn't exist
+        os.makedirs('mazes', exist_ok=True)
+        
+        # ask for maze name
+        name = easygui.enterbox("Enter maze name:", "Save Maze")
+        if name:
+            # save maze to file
+            filepath = f'mazes/{name}.json'
+            with open(filepath, 'w') as f:
+                json.dump(self.maze, f)
+            print(f'saved to {filepath}')
